@@ -45,8 +45,6 @@ class Horcrux {
 	public function JoinTogether()
 	{
 		$decryptKey = "";
-
-
 		foreach ($this -> piecesArr as $key => $value) {
 			if($key < $this->numPieces)
 			{
@@ -74,5 +72,13 @@ class Horcrux {
 	        $string .= $characters[mt_rand(0, strlen($characters))];
 	    }
     return $string;
-}
+	}
+
+	public function MakeQRCodes(){
+		$qrCode = new Endroid\QrCode\QrCode();
+		$qrCode->setText($this->piecesArr[0]);
+		$qrCode->setSize(300);
+		$qrCode->setPadding(10);
+		$qrCode->render();
+	}
 }
