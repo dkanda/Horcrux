@@ -6,7 +6,6 @@ class Horcrux {
 	protected $encryptedInputFile;
 	protected $piecesArr = array();
 	protected $lengthOfEachPiece;
-	protected $numPieces;
 	protected $outputFile;
 	protected $encryptedFile;
 
@@ -14,13 +13,6 @@ class Horcrux {
 	{
 		$this -> inputFile = file_get_contents($handle);
 	}
-
-	public function SetNumPieces($num)
-	{
-		$this-> numPieces = $num;
-		$this-> keyString = $this -> genRandomString($num);
-	}
-
 	private function EncryptFile($string, $key)
 	{
 		return mcrypt_ecb (MCRYPT_3DES, $key, $string, MCRYPT_ENCRYPT);
@@ -30,32 +22,42 @@ class Horcrux {
 	{
 		return mcrypt_ecb (MCRYPT_3DES, $key, $string, MCRYPT_DECRYPT);
 	}
+	
+	public function ReadString($str)
+	{
+		$this -> inputFile = $str;
+	}
 
 	//encrypt and split encrypted file
-	public function Split()
+	public function Split($numPieces)
 	{
+		$this -> keyString = $this -> genRandomString($numPieces);
 		$encryptedFile = $this -> EncryptFile($this -> inputFile, $this -> keyString);
-		echo $encryptedFile."\n";
-		for($i=0; $i<$this -> numPieces; $i++)//split up according to # of desired pieces
-			$this -> piecesArr[$i] = substr($encryptedFile, (strlen($encryptedFile)/$this ->numPieces)*$i, strlen($encryptedFile)/$this ->numPieces).$this->keyString[$i];
-		if(strlen($encryptedFile)/$this ->numPieces % $this ->numPieces != 0)//remaining pieces
-			array_push($this-> piecesArr, substr($encryptedFile, ((strlen($encryptedFile)/$this ->numPieces)*$this -> numPieces)-1));
-		print_r($this->piecesArr);
+		
+		$pieceLen = floor(strlen($encryptedFile)/$numPieces);
+		for($i=0; $i<$numPieces; $i++)//split up according to # of desired pieces
+			$this -> piecesArr[$i] = substr($encryptedFile, $pieceLen*$i, $pieceLen).$this->keyString[$i].str_pad($i, 3, "0", STR_PAD_LEFT);
+		
+		if(strlen($encryptedFile) % $numPieces != 0)//remaining piece get tacked on the end of last piece
+			$this->piecesArr[$numPieces -1] = substr_replace($this->piecesArr[$numPieces -1],substr($encryptedFile,$pieceLen*($numPieces)),-4,0);
+		return $this->piecesArr;
 	}
-	public function JoinTogether()
+	
+	public function JoinTogether($arr)
 	{
-		$decryptKey = "";
-		foreach ($this -> piecesArr as $key => $value) {
-			if($key < $this->numPieces)
-			{
-				$decryptKey .= substr($value,-1);
-				$this-> encryptedFile .= substr($value, 0, -1);
-			}
+		$decryptKey = array();
+		$encryptedString = "";
+		foreach ($arr as $key => $value) {
+				//get index of this piece
+				$idx = intval(substr($value, -3,3));
+				$decryptKey[$idx] = substr($value,-4,1);
+				$encryptedString[$idx] = substr($value, 0, -4);
 		}
-		if($this->numPieces < count($this -> piecesArr))
-			$this-> encryptedFile .= $this -> piecesArr[count($this -> piecesArr)-1];
-		$this->outputFile = $this->DecryptFile($this->encryptedFile, $decryptKey);
-		print($this ->outputFile);
+
+		$decryptKey = implode($decryptKey,"");
+		$encryptedString = implode($encryptedString,"");
+		$this->outputFile = $this->DecryptFile($encryptedString, $decryptKey);
+		return $this ->outputFile;
 	}
 
 	public function SaveSplitToDisk()
